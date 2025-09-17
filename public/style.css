@@ -161,6 +161,47 @@ header p {
     white-space: pre-wrap;
 }
 
+/* ... (semua kode CSS lama tetap di sini) ... */
+
+/* --- Styling di dalam Modal --- */
+.modal-product-info p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--tg-theme-text-color);
+    white-space: pre-wrap;
+    word-wrap: break-word; /* Agar link panjang tidak merusak layout */
+}
+
+/* === TAMBAHKAN INI: Styling untuk link di deskripsi === */
+.modal-product-info p a {
+    color: var(--tg-theme-button-color); /* Warna link mengikuti warna tombol tema */
+    text-decoration: none;
+    font-weight: 500;
+}
+.modal-product-info p a:hover {
+    text-decoration: underline;
+}
+
+/* === TAMBAHKAN INI: Styling untuk tombol Beli === */
+.buy-button {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    margin-top: 20px;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+.buy-button:hover {
+    opacity: 0.85;
+}
+
 /* Animasi untuk modal */
 @keyframes fadeIn {
     from { opacity: 0; }

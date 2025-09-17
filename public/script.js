@@ -1,18 +1,22 @@
-// File: public/script.js (Versi Profesional + Modal)
+// File: public/script.js (Versi FINAL dengan Link & Tombol Beli)
 document.addEventListener('DOMContentLoaded', function () {
+    // --- AMBIL SEMUA ELEMEN DARI HTML ---
     const productListElement = document.getElementById('product-list');
-    const tg = window.Telegram.WebApp;
-
-    // Ambil Elemen Modal dari HTML
     const modalElement = document.getElementById('product-modal');
     const modalImg = document.getElementById('modal-img');
     const modalTitle = document.getElementById('modal-title');
     const modalDescription = document.getElementById('modal-description');
     const closeModalButton = document.querySelector('.close-modal-button');
+    const buyButton = document.getElementById('modal-buy-button');
     
-    // Variabel untuk Menyimpan Data
+    // Inisialisasi Telegram Web App
+    const tg = window.Telegram.WebApp;
+    
+    // Variabel Global
     let allProducts = [];
     let API_BASE_URL = '';
+
+    // --- FUNGSI PEMBANTU ---
 
     function applyTelegramTheme() {
         try {
@@ -35,16 +39,39 @@ document.addEventListener('DOMContentLoaded', function () {
             productListElement.appendChild(skeletonCard);
         }
     }
-    
-    // Fungsi untuk Modal
+
+    function linkify(text) {
+        const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+        const usernameRegex = /(^|\s)@([a-zA-Z0-9_]{5,32})/g;
+        let linkedText = text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+        linkedText = linkedText.replace(usernameRegex, (match, space, username) => `${space}<a href="https://t.me/${username}" target="_blank" rel="noopener noreferrer">@${username}</a>`);
+        return linkedText;
+    }
+
+    function findSellerUsername(description) {
+        const regex = /DM to order!\s*:\s*@([a-zA-Z0-9_]{5,32})/;
+        const match = description.match(regex);
+        return match ? match[1] : null; // Mengembalikan username tanpa '@'
+    } // <-- PERBAIKAN: Kurung kurawal yang hilang sudah ditambahkan di sini
+
+    // --- LOGIKA MODAL ---
+
     function openModal(productId) {
         const product = allProducts.find(p => p.id === productId);
         if (!product) return;
-        
+
         const imageUrl = `${API_BASE_URL}/file/${product.image_file_id}`;
         modalImg.src = imageUrl;
         modalTitle.textContent = product.name;
-        modalDescription.innerHTML = product.description.replace(/\n/g, '<br>');
+        modalDescription.innerHTML = linkify(product.description || '').replace(/\n/g, '<br>');
+
+        const sellerUsername = findSellerUsername(product.description || '');
+        if (sellerUsername) {
+            buyButton.href = `https://t.me/${sellerUsername}`;
+            buyButton.style.display = 'block';
+        } else {
+            buyButton.style.display = 'none';
+        }
 
         modalElement.style.display = 'flex';
         tg.HapticFeedback.impactOccurred('light');
@@ -54,13 +81,8 @@ document.addEventListener('DOMContentLoaded', function () {
         modalElement.style.display = 'none';
     }
 
-    // Event listener untuk menutup modal
-    closeModalButton.addEventListener('click', closeModal);
-    modalElement.addEventListener('click', (event) => {
-        if (event.target === modalElement) closeModal();
-    });
+    // --- FUNGSI UTAMA APLIKASI ---
 
-    // Fungsi Utama
     async function initializeApp() {
         showSkeletonLoader();
         try {
@@ -77,15 +99,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             allProducts.forEach(product => {
-                const imageId = product.image_file_id;
-                if (!imageId) return;
-
+                if (!product || !product.image_file_id) return; // Pengecekan lebih aman
                 const card = document.createElement('div');
                 card.className = 'product-card';
                 card.dataset.productId = product.id; 
 
                 card.innerHTML = `
-                    <img src="${API_BASE_URL}/file/${imageId}" alt="${product.name}" class="product-image" loading="lazy">
+                    <img src="${API_BASE_URL}/file/${product.image_file_id}" alt="${product.name}" class="product-image" loading="lazy">
                     <div class="product-title-overlay">${product.name}</div>
                 `;
                 
@@ -105,9 +125,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Inisialisasi
+    // --- MENJALANKAN APLIKASI ---
     tg.ready();
     applyTelegramTheme();
     initializeApp();
+
+    // Event Listeners
     tg.onEvent('themeChanged', applyTelegramTheme);
+    closeModalButton.addEventListener('click', closeModal);
+    modalElement.addEventListener('click', (event) => {
+        if (event.target === modalElement) closeModal();
+    });
 });
