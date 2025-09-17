@@ -94,6 +94,31 @@ app.get('/file/:file_id', async (req, res) => {
     }
 });
 
+// === API BARU UNTUK CEK UPDATE (POLLING) ===
+app.get('/api/latest', async (req, res) => {
+    // Ambil ID terakhir yang diketahui oleh klien dari query parameter
+    const lastKnownId = parseInt(req.query.lastId) || 0;
+
+    try {
+        const database = await connectToDatabase();
+        // Cari satu produk terbaru (urutkan dari ID terbesar, ambil 1)
+        const latestProduct = await database.collection("products").findOne(
+            {}, 
+            { sort: { id: -1 } }
+        );
+
+        if (latestProduct && latestProduct.id > lastKnownId) {
+            // Jika ada produk baru, kirim sebagai respons
+            res.json({ newPost: true, latestProduct: latestProduct });
+        } else {
+            // Jika tidak ada yang baru, kirim respons kosong
+            res.json({ newPost: false });
+        }
+    } catch (error) {
+        // Jika ada error, jangan kirim apa-apa agar tidak mengganggu klien
+        res.status(500).json({ error: "Failed to check for updates." });
+    }
+});
 
 // --- LOGIKA BOT ---
 // (Semua logika bot.onText dan bot.on di sini TIDAK BERUBAH)

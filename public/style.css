@@ -202,6 +202,35 @@ header p {
     opacity: 0.85;
 }
 
+/* === TAMBAHKAN INI: Styling untuk Notifikasi Postingan Baru === */
+.new-post-toast {
+    position: fixed;
+    top: -100px; /* Mulai dari luar layar */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    padding: 12px 20px;
+    border-radius: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: top 0.5s cubic-bezier(0.17, 0.84, 0.44, 1); /* Efek memantul */
+}
+
+.new-post-toast.show {
+    top: 15px; /* Posisi saat muncul */
+}
+
+.new-post-toast .toast-icon {
+    font-style: normal; /* Untuk emoji */
+}
+
 /* Animasi untuk modal */
 @keyframes fadeIn {
     from { opacity: 0; }

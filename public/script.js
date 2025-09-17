@@ -16,6 +16,65 @@ document.addEventListener('DOMContentLoaded', function () {
     let allProducts = [];
     let API_BASE_URL = '';
 
+     // Variabel baru untuk polling
+    let pollingInterval;
+    let lastProductId = 0;
+
+     // --- FUNGSI BARU: Logika Polling ---
+    function startPolling() {
+        // Hentikan polling lama jika ada
+        if (pollingInterval) clearInterval(pollingInterval);
+
+        // Mulai polling baru setiap 10 detik (10000 milidetik)
+        pollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/latest?lastId=${lastProductId}`);
+                const data = await response.json();
+
+                if (data.newPost && data.latestProduct.id > lastProductId) {
+                    showNewPostNotification(data.latestProduct);
+                }
+            } catch (error) {
+                console.warn("Polling check failed:", error);
+            }
+        }, 10000);
+    }
+
+    // --- FUNGSI BARU: Menampilkan Notifikasi ---
+    function showNewPostNotification(newProduct) {
+        // Hapus notifikasi lama jika ada
+        const existingToast = document.querySelector('.new-post-toast');
+        if (existingToast) existingToast.remove();
+
+        // Buat elemen notifikasi baru
+        const toast = document.createElement('div');
+        toast.className = 'new-post-toast';
+        toast.innerHTML = `<span class="toast-icon">⚡️</span> <span>Postingan Baru: ${newProduct.name}</span>`;
+
+        // Tambahkan ke body
+        document.body.appendChild(toast);
+
+        // Tampilkan dengan animasi
+        setTimeout(() => {
+            toast.classList.add('show');
+            tg.HapticFeedback.notificationOccurred('warning'); // Beri getaran
+        }, 100);
+
+        // Sembunyikan setelah 5 detik
+        setTimeout(() => {
+            toast.classList.remove('show');
+            // Hapus dari DOM setelah animasi selesai
+            setTimeout(() => toast.remove(), 500);
+        }, 5000);
+
+        // Logika saat notifikasi di-klik
+        toast.addEventListener('click', () => {
+            // Hentikan polling, muat ulang semua produk, lalu mulai polling lagi
+            clearInterval(pollingInterval);
+            initializeApp(true); // 'true' menandakan ini adalah refresh
+            toast.remove();
+        });
+    }
     // --- FUNGSI PEMBANTU ---
 
     function applyTelegramTheme() {
@@ -83,12 +142,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- FUNGSI UTAMA APLIKASI ---
 
-    async function initializeApp() {
-        showSkeletonLoader();
+    // --- FUNGSI UTAMA (Dimodifikasi) ---
+    async function initializeApp(isRefresh = false) {
+        // Hanya tampilkan skeleton loader saat pertama kali dibuka, bukan saat refresh
+        if (!isRefresh) {
+            showSkeletonLoader();
+        }
+        
         try {
             API_BASE_URL = "https://kandangpet-katalog.vercel.app";
             const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
-            if (!productsResponse.ok) throw new Error(`HTTP error! status: ${productsResponse.status}`);
+            if (!productsResponse.ok) throw new Error(`HTTP error!`);
             
             allProducts = await productsResponse.json();
             
