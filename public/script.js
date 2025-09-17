@@ -6,16 +6,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // GANTI FUNGSI LAMA DENGAN INI
 async function initializeApp() {
     try {
-        console.log("MATA-MATA FRONTEND: Aplikasi dimulai."); // Mata-mata #1
-
-        const configResponse = await fetch('/api/config');
-        const config = await configResponse.json();
-        const API_BASE_URL = config.baseUrl;
-
-        if (!API_BASE_URL) throw new Error("Gagal mendapatkan konfigurasi URL.");
-        console.log("MATA-MATA FRONTEND: URL basis didapatkan:", API_BASE_URL); // Mata-mata #2
-
+        // Langsung gunakan URL produksi, tidak perlu bertanya lagi.
+        const API_BASE_URL = "https://kandangpet-katalog.vercel.app";
         const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
+        
         if (!productsResponse.ok) throw new Error("Gagal mengambil data produk.");
         
         const products = await productsResponse.json();
