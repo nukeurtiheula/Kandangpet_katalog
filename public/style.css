@@ -61,47 +61,114 @@ header p {
     border-radius: var(--card-radius);
     box-shadow: var(--card-shadow);
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    cursor: pointer; /* Menandakan bisa di-klik */
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    position: relative; /* Untuk menempatkan judul di atas gambar */
 }
-.product-card:hover { /* Efek untuk desktop */
+.product-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
-
 .product-image {
     width: 100%;
-    aspect-ratio: 1 / 1; /* Membuat gambar selalu persegi */
-    object-fit: cover; /* Mencegah gambar gepeng */
-    background-color: #eee;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
 }
-
-.product-info {
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1; /* Memastikan info mengisi ruang sisa */
-}
-
-.product-title {
-    font-size: 15px;
+.product-title-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+    color: #ffffff;
+    padding: 20px 10px 8px 10px;
+    font-size: 14px;
     font-weight: 600;
     line-height: 1.3;
-    margin-bottom: 6px;
-    /* Batasi teks hanya 2 baris */
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    /* Batasi teks 2 baris */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;  
     overflow: hidden;
 }
 
-.product-description {
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--tg-theme-hint-color);
-    flex-grow: 1;
+/* --- 6. BARU: Styling untuk Modal Popup --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 15px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+.modal-content {
+    background-color: var(--tg-theme-bg-color);
+    border-radius: var(--card-radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px; /* Batas lebar modal */
+    max-height: 90vh; /* Batas tinggi modal */
+    overflow-y: auto;
+    position: relative;
+    animation: slideInUp 0.3s ease-in-out;
+}
+.close-modal-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background-color: rgba(0, 0, 0, 0.1);
+    color: var(--tg-theme-text-color);
+    border-radius: 50%;
+    font-size: 24px;
+    line-height: 32px;
+    text-align: center;
+    cursor: pointer;
+    z-index: 1001;
+}
+.modal-body {
+    padding: 0;
+}
+.modal-product-image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+}
+.modal-product-info {
+    padding: 20px;
+}
+.modal-product-info h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+.modal-product-info p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--tg-theme-text-color);
     white-space: pre-wrap;
+}
+
+/* Animasi untuk modal */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes slideInUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }
 
 /* --- 6. Skeleton Loader (Efek Shimmer) --- */
