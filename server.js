@@ -21,10 +21,8 @@ if (!BOT_TOKEN || !CHANNEL_ID || !MONGODB_URI) {
 
 const bot = new TelegramBot(BOT_TOKEN);
 const app = express();
-
+app.use(express.json());
 app.use(cors());
-app.use(express.json()); // Middleware untuk membaca body JSON dari webhook Telegram
-
 // --- KONEKSI KE DATABASE MONGODB ---
 // Kita buat koneksi sekali dan coba gunakan kembali
 let db;
