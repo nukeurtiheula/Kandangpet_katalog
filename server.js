@@ -37,15 +37,6 @@ async function connectToDatabase() {
     return db;
 }
 
-// --- PENGATURAN WEBHOOK (HANYA UNTUK VERCEL) ---
-// Pastikan VERCEL_URL ada saat di-deploy
-if (VERCEL_URL) {
-    const webhookUrl = `https://${VERCEL_URL}/api/webhook`;
-    bot.setWebHook(webhookUrl)
-        .then(() => console.log(`Webhook berhasil diatur ke: ${webhookUrl}`))
-        .catch((err) => console.error("Gagal mengatur webhook:", err));
-}
-
 // Endpoint untuk menerima update dari Webhook Telegram
 app.post('/api/webhook', (req, res) => {
     bot.processUpdate(req.body);
