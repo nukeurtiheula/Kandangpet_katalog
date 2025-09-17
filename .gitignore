@@ -1,0 +1,17 @@
+# Abaikan semua library yang diinstall oleh Node
+node_modules
+
+# Abaikan semua file environment yang berisi rahasia
+.env
+.env.*
+
+# Abaikan file database lokal
+db.json
+
+# Abaikan file log
+*.log
+npm-debug.log*
+
+# File sistem operasi
+.DS_Store
+Thumbs.db
