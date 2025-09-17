@@ -3,49 +3,72 @@ document.addEventListener('DOMContentLoaded', function () {
     const tg = window.Telegram.WebApp;
     tg.ready();
 
-    async function initializeApp() {
-        try {
-            // Kita gunakan path relatif. Browser akan otomatis mengarah ke domain ngrok.
-            const configResponse = await fetch('/api/config');
-            const config = await configResponse.json();
-            const API_BASE_URL = config.baseUrl;
+    // GANTI FUNGSI LAMA DENGAN INI
+async function initializeApp() {
+    try {
+        console.log("MATA-MATA FRONTEND: Aplikasi dimulai."); // Mata-mata #1
 
-            if (!API_BASE_URL) throw new Error("Gagal mendapatkan konfigurasi URL.");
+        const configResponse = await fetch('/api/config');
+        const config = await configResponse.json();
+        const API_BASE_URL = config.baseUrl;
 
-            const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
-            if (!productsResponse.ok) throw new Error("Gagal mengambil data produk.");
+        if (!API_BASE_URL) throw new Error("Gagal mendapatkan konfigurasi URL.");
+        console.log("MATA-MATA FRONTEND: URL basis didapatkan:", API_BASE_URL); // Mata-mata #2
+
+        const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
+        if (!productsResponse.ok) throw new Error("Gagal mengambil data produk.");
+        
+        const products = await productsResponse.json();
+        
+        // --- MATA-MATA PALING PENTING ADA DI SINI ---
+        console.log("MATA-MATA FRONTEND: Data produk berhasil diterima dari server."); // Mata-mata #3
+        console.log("DATA MENTAH:", products); // Mata-mata #4 - Tampilkan seluruh data
+
+        productListElement.innerHTML = '';
+        if (products.length === 0) {
+            productListElement.innerHTML = '<div class="info">Belum ada produk.</div>';
+            return;
+        }
+
+        console.log("MATA-MATA FRONTEND: Memulai loop untuk menampilkan produk..."); // Mata-mata #5
+
+        products.forEach((product, index) => {
+            console.log(`MATA-MATA FRONTEND: Memproses produk ke-${index + 1}`, product); // Mata-mata #6
             
-            const products = await productsResponse.json();
+            // Pengecekan lebih aman
+            if (!product || typeof product !== 'object') {
+                console.warn("Data produk tidak valid, dilewati:", product);
+                return; // Lewati item yang aneh
+            }
 
-            productListElement.innerHTML = '';
-            if (products.length === 0) {
-                productListElement.innerHTML = '<div class="info">Belum ada produk.</div>';
+            const imageId = product.image_file_id;
+            const productName = product.name || "Nama Tidak Tersedia"; // Default value
+            const productDescription = product.description || "Deskripsi Tidak Tersedia"; // Default value
+
+            if (!imageId) {
+                console.warn("Produk dilewati karena tidak punya image_file_id:", product);
                 return;
             }
 
-            products.forEach(product => {
-                // Sekarang kita hanya perlu mencari 'image_file_id' karena sudah konsisten
-                const imageId = product.image_file_id;
-                if (!imageId) return;
+            const imageUrl = `${API_BASE_URL}/file/${imageId}`;
+            const card = document.createElement('div');
+            card.className = 'product-card';
+            card.innerHTML = `
+                <img src="${imageUrl}" alt="${productName}" class="product-image" loading="lazy">
+                <div class="product-info">
+                    <h2 class="product-title">${productName}</h2>
+                    <p class="product-description">${productDescription.replace(/\n/g, '<br>')}</p>
+                </div>
+            `;
+            productListElement.appendChild(card);
+        });
 
-                const imageUrl = `${API_BASE_URL}/file/${imageId}`;
-                const card = document.createElement('div');
-                card.className = 'product-card';
-                card.innerHTML = `
-                    <img src="${imageUrl}" alt="${product.name}" class="product-image" loading="lazy">
-                    <div class="product-info">
-                        <h2 class="product-title">${product.name}</h2>
-                        <p class="product-description">${product.description}</p>
-                    </div>
-                `;
-                productListElement.appendChild(card);
-            });
+        console.log("MATA-MATA FRONTEND: Loop selesai. Semua produk berhasil ditampilkan."); // Mata-mata #7
 
-        } catch (error) {
-            console.error("Error saat inisialisasi:", error);
-            productListElement.innerHTML = '<div class="error">Gagal memuat aplikasi. Coba lagi nanti.</div>';
-        }
+    } catch (error) {
+        console.error("ERROR MERAH DI FRONTEND:", error); // Mata-mata #8
+        productListElement.innerHTML = '<div class="error">Gagal memuat aplikasi. Coba lagi nanti.</div>';
     }
-
+}
     initializeApp();
 });
