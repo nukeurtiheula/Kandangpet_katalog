@@ -1,4 +1,4 @@
-// File: public/script.js (Versi FINAL dengan Link & Tombol Beli)
+// File: public/script.js (Versi FINAL dengan Notifikasi, Sudah Diperbaiki)
 document.addEventListener('DOMContentLoaded', function () {
     // --- AMBIL SEMUA ELEMEN DARI HTML ---
     const productListElement = document.getElementById('product-list');
@@ -15,67 +15,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // Variabel Global
     let allProducts = [];
     let API_BASE_URL = '';
-
-     // Variabel baru untuk polling
     let pollingInterval;
     let lastProductId = 0;
 
-     // --- FUNGSI BARU: Logika Polling ---
-    function startPolling() {
-        // Hentikan polling lama jika ada
-        if (pollingInterval) clearInterval(pollingInterval);
-
-        // Mulai polling baru setiap 10 detik (10000 milidetik)
-        pollingInterval = setInterval(async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/latest?lastId=${lastProductId}`);
-                const data = await response.json();
-
-                if (data.newPost && data.latestProduct.id > lastProductId) {
-                    showNewPostNotification(data.latestProduct);
-                }
-            } catch (error) {
-                console.warn("Polling check failed:", error);
-            }
-        }, 10000);
-    }
-
-    // --- FUNGSI BARU: Menampilkan Notifikasi ---
-    function showNewPostNotification(newProduct) {
-        // Hapus notifikasi lama jika ada
-        const existingToast = document.querySelector('.new-post-toast');
-        if (existingToast) existingToast.remove();
-
-        // Buat elemen notifikasi baru
-        const toast = document.createElement('div');
-        toast.className = 'new-post-toast';
-        toast.innerHTML = `<span class="toast-icon">⚡️</span> <span>Postingan Baru: ${newProduct.name}</span>`;
-
-        // Tambahkan ke body
-        document.body.appendChild(toast);
-
-        // Tampilkan dengan animasi
-        setTimeout(() => {
-            toast.classList.add('show');
-            tg.HapticFeedback.notificationOccurred('warning'); // Beri getaran
-        }, 100);
-
-        // Sembunyikan setelah 5 detik
-        setTimeout(() => {
-            toast.classList.remove('show');
-            // Hapus dari DOM setelah animasi selesai
-            setTimeout(() => toast.remove(), 500);
-        }, 5000);
-
-        // Logika saat notifikasi di-klik
-        toast.addEventListener('click', () => {
-            // Hentikan polling, muat ulang semua produk, lalu mulai polling lagi
-            clearInterval(pollingInterval);
-            initializeApp(true); // 'true' menandakan ini adalah refresh
-            toast.remove();
-        });
-    }
-    // --- FUNGSI PEMBANTU ---
+    // =======================================================
+    // --- BAGIAN 1: FUNGSI-FUNGSI PEMBANTU (HELPERS) ---
+    // =======================================================
 
     function applyTelegramTheme() {
         try {
@@ -110,17 +55,18 @@ document.addEventListener('DOMContentLoaded', function () {
     function findSellerUsername(description) {
         const regex = /DM to order!\s*:\s*@([a-zA-Z0-9_]{5,32})/;
         const match = description.match(regex);
-        return match ? match[1] : null; // Mengembalikan username tanpa '@'
-    } // <-- PERBAIKAN: Kurung kurawal yang hilang sudah ditambahkan di sini
+        return match ? match[1] : null;
+    }
 
-    // --- LOGIKA MODAL ---
+    // =======================================================
+    // --- BAGIAN 2: LOGIKA MODAL & NOTIFIKASI ---
+    // =======================================================
 
     function openModal(productId) {
         const product = allProducts.find(p => p.id === productId);
         if (!product) return;
 
-        const imageUrl = `${API_BASE_URL}/file/${product.image_file_id}`;
-        modalImg.src = imageUrl;
+        modalImg.src = `${API_BASE_URL}/file/${product.image_file_id}`;
         modalTitle.textContent = product.name;
         modalDescription.innerHTML = linkify(product.description || '').replace(/\n/g, '<br>');
 
@@ -131,52 +77,83 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             buyButton.style.display = 'none';
         }
-
         modalElement.style.display = 'flex';
-        tg.HapticFeedback.impactOccurred('light');
     }
 
     function closeModal() {
         modalElement.style.display = 'none';
     }
 
-    // --- FUNGSI UTAMA APLIKASI ---
+    function showNewPostNotification(newProduct) {
+        const existingToast = document.querySelector('.new-post-toast');
+        if (existingToast) existingToast.remove();
+        const toast = document.createElement('div');
+        toast.className = 'new-post-toast';
+        toast.innerHTML = `<span class="toast-icon">⚡️</span> <span>Postingan Baru: ${newProduct.name}</span>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 500);
+        }, 5000);
+        toast.addEventListener('click', () => {
+            clearInterval(pollingInterval);
+            initializeApp(true);
+            toast.remove();
+        });
+    }
 
-    // --- FUNGSI UTAMA (Dimodifikasi) ---
+    // =======================================================
+    // --- BAGIAN 3: LOGIKA UTAMA (POLLING & INIT) ---
+    // =======================================================
+
+    function startPolling() {
+        if (pollingInterval) clearInterval(pollingInterval);
+        pollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/latest?lastId=${lastProductId}`);
+                const data = await response.json();
+                if (data.newPost && data.latestProduct.id > lastProductId) {
+                    showNewPostNotification(data.latestProduct);
+                }
+            } catch (error) {
+                console.warn("Polling check failed:", error);
+            }
+        }, 10000);
+    }
+
     async function initializeApp(isRefresh = false) {
-        // Hanya tampilkan skeleton loader saat pertama kali dibuka, bukan saat refresh
-        if (!isRefresh) {
-            showSkeletonLoader();
-        }
-        
+        if (!isRefresh) showSkeletonLoader();
         try {
             API_BASE_URL = "https://kandangpet-katalog.vercel.app";
             const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
-            if (!productsResponse.ok) throw new Error(`HTTP error!`);
+            if (!productsResponse.ok) throw new Error(`HTTP error! status: ${productsResponse.status}`);
             
             allProducts = await productsResponse.json();
             
             productListElement.innerHTML = '';
             if (allProducts.length === 0) {
                 productListElement.innerHTML = '<div class="status-message">Belum ada produk.</div>';
-                return;
+                return; // Hentikan fungsi di sini jika tidak ada produk
+            }
+
+            if (allProducts.length > 0) {
+                lastProductId = allProducts[0].id;
             }
 
             allProducts.forEach(product => {
-                if (!product || !product.image_file_id) return; // Pengecekan lebih aman
+                if (!product || !product.image_file_id) return;
                 const card = document.createElement('div');
                 card.className = 'product-card';
-                card.dataset.productId = product.id; 
-
+                card.dataset.productId = product.id;
                 card.innerHTML = `
                     <img src="${API_BASE_URL}/file/${product.image_file_id}" alt="${product.name}" class="product-image" loading="lazy">
                     <div class="product-title-overlay">${product.name}</div>
                 `;
-                
                 card.addEventListener('click', () => openModal(product.id));
                 productListElement.appendChild(card);
             });
-            tg.HapticFeedback.notificationOccurred('success');
+
         } catch (error) {
             console.error("Error saat inisialisasi:", error);
             productListElement.innerHTML = `
@@ -189,15 +166,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- MENJALANKAN APLIKASI ---
-    tg.ready();
-    applyTelegramTheme();
-    initializeApp();
+    // =======================================================
+    // --- BAGIAN 4: MENJALANKAN SELURUH APLIKASI ---
+    // =======================================================
 
-    // Event Listeners
-    tg.onEvent('themeChanged', applyTelegramTheme);
-    closeModalButton.addEventListener('click', closeModal);
-    modalElement.addEventListener('click', (event) => {
-        if (event.target === modalElement) closeModal();
-    });
+    async function run() {
+        tg.ready();
+        applyTelegramTheme();
+        
+        // Event Listeners
+        tg.onEvent('themeChanged', applyTelegramTheme);
+        closeModalButton.addEventListener('click', closeModal);
+        modalElement.addEventListener('click', (event) => {
+            if (event.target === modalElement) closeModal();
+        });
+
+        await initializeApp(); // Tunggu data pertama dimuat
+        startPolling();      // Baru mulai polling setelah data pertama ada
+    }
+    
+    run(); // Jalankan!
 });
