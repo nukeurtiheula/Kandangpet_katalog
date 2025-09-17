@@ -61,13 +61,25 @@ app.get('/api/config', (req, res) => {
 });
 
 // API untuk mengambil semua produk dari MongoDB
+// GANTI FUNGSI LAMA DENGAN INI
 app.get('/api/products', async (req, res) => {
+    console.log("LOG MATA-MATA: Endpoint /api/products dipanggil."); // Mata-mata #1
     try {
+        console.log("LOG MATA-MATA: Mencoba menghubungkan ke database..."); // Mata-mata #2
         const database = await connectToDatabase();
+        
+        console.log("LOG MATA-MATA: Berhasil terhubung. Mencoba mengambil & mengurutkan produk..."); // Mata-mata #3
+
         const products = await database.collection("products").find({}).sort({ id: -1 }).toArray();
+        
+        console.log(`LOG MATA-MATA: Berhasil mengambil ${products.length} produk dari database.`); // Mata-mata #4
+
         res.json(products);
+        
+        console.log("LOG MATA-MATA: Berhasil mengirim data produk ke frontend."); // Mata-mata #5
+
     } catch (error) {
-        console.error("Gagal mengambil produk:", error);
+        console.error("ERROR MERAH TERDETEKSI di /api/products:", error); // Mata-mata #6
         res.status(500).json({ error: "Gagal mengambil data produk." });
     }
 });
