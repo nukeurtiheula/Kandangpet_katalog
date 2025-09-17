@@ -1,68 +1,101 @@
+// File: public/script.js (Versi Profesional)
+
 document.addEventListener('DOMContentLoaded', function () {
     const productListElement = document.getElementById('product-list');
     const tg = window.Telegram.WebApp;
-    tg.ready();
 
-    // GANTI FUNGSI LAMA DENGAN INI
-async function initializeApp() {
-    try {
-        // Langsung gunakan URL produksi, tidak perlu bertanya lagi.
-        const API_BASE_URL = "https://kandangpet-katalog.vercel.app";
-        const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
-        
-        if (!productsResponse.ok) throw new Error("Gagal mengambil data produk.");
-        
-        const products = await productsResponse.json();
-        
-        // --- MATA-MATA PALING PENTING ADA DI SINI ---
-        console.log("MATA-MATA FRONTEND: Data produk berhasil diterima dari server."); // Mata-mata #3
-        console.log("DATA MENTAH:", products); // Mata-mata #4 - Tampilkan seluruh data
-
-        productListElement.innerHTML = '';
-        if (products.length === 0) {
-            productListElement.innerHTML = '<div class="info">Belum ada produk.</div>';
-            return;
+    // --- 1. Fungsi untuk Menerapkan Tema dari Telegram ---
+    function applyTelegramTheme() {
+        try {
+            const theme = tg.themeParams;
+            document.documentElement.style.setProperty('--tg-theme-bg-color', theme.bg_color);
+            document.documentElement.style.setProperty('--tg-theme-text-color', theme.text_color);
+            document.documentElement.style.setProperty('--tg-theme-hint-color', theme.hint_color);
+            document.documentElement.style.setProperty('--tg-theme-button-color', theme.button_color);
+            document.documentElement.style.setProperty('--tg-theme-button-text-color', theme.button_text_color);
+            document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', theme.secondary_bg_color);
+        } catch (error) {
+            console.warn("Gagal menerapkan tema Telegram:", error);
         }
+    }
 
-        console.log("MATA-MATA FRONTEND: Memulai loop untuk menampilkan produk..."); // Mata-mata #5
+    // --- 2. Fungsi untuk Menampilkan Skeleton Loader ---
+    function showSkeletonLoader() {
+        productListElement.innerHTML = ''; // Kosongkan dulu
+        for (let i = 0; i < 6; i++) { // Tampilkan 6 placeholder
+            const skeletonCard = document.createElement('div');
+            skeletonCard.className = 'skeleton';
+            skeletonCard.innerHTML = `
+                <div class="product-image"></div>
+                <div class="product-info">
+                    <div class="skeleton-text title"></div>
+                    <div class="skeleton-text desc"></div>
+                </div>
+            `;
+            productListElement.appendChild(skeletonCard);
+        }
+    }
 
-        products.forEach((product, index) => {
-            console.log(`MATA-MATA FRONTEND: Memproses produk ke-${index + 1}`, product); // Mata-mata #6
+    // --- 3. Fungsi Utama ---
+    async function initializeApp() {
+        showSkeletonLoader(); // Tampilkan loader dulu
+
+        try {
+            const API_BASE_URL = "https://kandangpet-katalog.vercel.app"; // URL produksi
+            const productsResponse = await fetch(`${API_BASE_URL}/api/products`);
             
-            // Pengecekan lebih aman
-            if (!product || typeof product !== 'object') {
-                console.warn("Data produk tidak valid, dilewati:", product);
-                return; // Lewati item yang aneh
+            if (!productsResponse.ok) {
+                throw new Error(`HTTP error! status: ${productsResponse.status}`);
             }
+            
+            const products = await productsResponse.json();
+            
+            productListElement.innerHTML = ''; // Hapus skeleton loader
 
-            const imageId = product.image_file_id;
-            const productName = product.name || "Nama Tidak Tersedia"; // Default value
-            const productDescription = product.description || "Deskripsi Tidak Tersedia"; // Default value
-
-            if (!imageId) {
-                console.warn("Produk dilewati karena tidak punya image_file_id:", product);
+            if (products.length === 0) {
+                productListElement.innerHTML = '<div class="status-message">Belum ada produk untuk ditampilkan.</div>';
                 return;
             }
 
-            const imageUrl = `${API_BASE_URL}/file/${imageId}`;
-            const card = document.createElement('div');
-            card.className = 'product-card';
-            card.innerHTML = `
-                <img src="${imageUrl}" alt="${productName}" class="product-image" loading="lazy">
-                <div class="product-info">
-                    <h2 class="product-title">${productName}</h2>
-                    <p class="product-description">${productDescription.replace(/\n/g, '<br>')}</p>
+            // Tampilkan produk asli
+            products.forEach(product => {
+                const imageId = product.image_file_id;
+                if (!imageId) return;
+
+                const imageUrl = `${API_BASE_URL}/file/${imageId}`;
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <img src="${imageUrl}" alt="${product.name}" class="product-image" loading="lazy">
+                    <div class="product-info">
+                        <h2 class="product-title">${product.name}</h2>
+                        <p class="product-description">${product.description}</p>
+                    </div>
+                `;
+                productListElement.appendChild(card);
+            });
+            
+            // Beri umpan balik getaran saat berhasil memuat
+            tg.HapticFeedback.notificationOccurred('success');
+
+        } catch (error) {
+            console.error("Error saat inisialisasi:", error);
+            productListElement.innerHTML = `
+                <div class="status-message">
+                    <p>Gagal memuat aplikasi. Coba lagi nanti.</p>
+                    <button class="retry-button">Coba Lagi</button>
                 </div>
             `;
-            productListElement.appendChild(card);
-        });
-
-        console.log("MATA-MATA FRONTEND: Loop selesai. Semua produk berhasil ditampilkan."); // Mata-mata #7
-
-    } catch (error) {
-        console.error("ERROR MERAH DI FRONTEND:", error); // Mata-mata #8
-        productListElement.innerHTML = '<div class="error">Gagal memuat aplikasi. Coba lagi nanti.</div>';
+            // Tambahkan event listener ke tombol "Coba Lagi"
+            document.querySelector('.retry-button').addEventListener('click', initializeApp);
+        }
     }
-}
+
+    // --- 4. Inisialisasi Aplikasi ---
+    tg.ready();
+    applyTelegramTheme();
     initializeApp();
+
+    // Dengarkan perubahan tema dari Telegram
+    tg.onEvent('themeChanged', applyTelegramTheme);
 });
