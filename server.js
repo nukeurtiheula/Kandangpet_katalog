@@ -1,55 +1,84 @@
+// File: server.js (Versi FINAL untuk MongoDB + Vercel)
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 const cors = require('cors');
-const { kv } = require('@vercel/kv'); // <-- 1. Import Vercel KV
+const { MongoClient, ServerApiVersion } = require('mongodb');
 
-// Konfigurasi
+// --- KONFIGURASI ---
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
-const VERCEL_URL = process.env.VERCEL_URL; // <-- Vercel akan menyediakan ini otomatis
-const PORT = 3000;
+const VERCEL_URL = process.env.VERCEL_URL; // Ini disediakan otomatis oleh Vercel
+const MONGODB_URI = process.env.MONGODB_URI; // Ini dari MongoDB Atlas
 
-if (!BOT_TOKEN || !CHANNEL_ID) {
-    console.error("FATAL: BOT_TOKEN atau CHANNEL_ID tidak ada di .env");
-    process.exit(1);
+// Validasi
+if (!BOT_TOKEN || !CHANNEL_ID || !MONGODB_URI) {
+    console.error("FATAL: Pastikan BOT_TOKEN, CHANNEL_ID, dan MONGODB_URI ada di Environment Variables.");
+    // Di Vercel, kita tidak bisa process.exit, cukup log error saja.
+    // Vercel akan menandai deployment sebagai gagal jika ada error saat startup.
 }
 
-// --- 2. Inisialisasi Bot TANPA POLLING ---
 const bot = new TelegramBot(BOT_TOKEN);
 const app = express();
 
 app.use(cors());
-app.use(express.json()); // Penting untuk menerima webhook dari Telegram
+app.use(express.json()); // Middleware untuk membaca body JSON dari webhook Telegram
 
-// --- 3. Atur Webhook Secara Otomatis ---
-const webhookUrl = `https://${VERCEL_URL}/api/webhook`;
-bot.setWebHook(webhookUrl);
+// --- KONEKSI KE DATABASE MONGODB ---
+// Kita buat koneksi sekali dan coba gunakan kembali
+let db;
+async function connectToDatabase() {
+    if (db) return db;
+    const client = new MongoClient(MONGODB_URI, { serverApi: ServerApiVersion.v1 });
+    await client.connect();
+    db = client.db("kandangpetDB"); // Kamu bisa ganti nama database-nya di sini
+    console.log("Berhasil terhubung ke MongoDB Atlas!");
+    return db;
+}
 
-// --- 4. Buat Endpoint untuk Menerima Update dari Telegram ---
+// --- PENGATURAN WEBHOOK (HANYA UNTUK VERCEL) ---
+// Pastikan VERCEL_URL ada saat di-deploy
+if (VERCEL_URL) {
+    const webhookUrl = `https://${VERCEL_URL}/api/webhook`;
+    bot.setWebHook(webhookUrl)
+        .then(() => console.log(`Webhook berhasil diatur ke: ${webhookUrl}`))
+        .catch((err) => console.error("Gagal mengatur webhook:", err));
+}
+
+// Endpoint untuk menerima update dari Webhook Telegram
 app.post('/api/webhook', (req, res) => {
     bot.processUpdate(req.body);
-    res.sendStatus(200); // Balas OK ke Telegram
+    res.sendStatus(200);
 });
 
-// Menyajikan file frontend dari folder 'public'
+
+// --- API ENDPOINTS ---
+
+// Sajikan file frontend dari folder 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API untuk memberitahu frontend alamat publiknya
+// API untuk memberitahu frontend alamatnya
 app.get('/api/config', (req, res) => {
-    res.json({ baseUrl: `https://${VERCEL_URL}` });
+    // Pastikan VERCEL_URL ada sebelum mengirim
+    const baseUrl = VERCEL_URL ? `https://${VERCEL_URL}` : 'http://localhost:3000';
+    res.json({ baseUrl });
 });
 
-// --- 5. Modifikasi API untuk menggunakan Vercel KV ---
+// API untuk mengambil semua produk dari MongoDB
 app.get('/api/products', async (req, res) => {
-    // Ambil data dari Vercel KV, bukan dari file
-    const products = await kv.get('products') || [];
-    res.setHeader('Content-Type', 'application/json');
-    res.json(products);
+    try {
+        const database = await connectToDatabase();
+        // Ambil data dan urutkan berdasarkan 'id' dari yang terbaru (descending)
+        const products = await database.collection("products").find({}).sort({ id: -1 }).toArray();
+        res.json(products);
+    } catch (error) {
+        console.error("Gagal mengambil produk:", error);
+        res.status(500).json({ error: "Gagal mengambil data produk." });
+    }
 });
 
-// API untuk redirect ke file gambar (tidak berubah)
+// API untuk redirect gambar (tidak berubah)
 app.get('/file/:file_id', async (req, res) => {
     try {
         const fileLink = await bot.getFileLink(req.params.file_id);
@@ -59,29 +88,24 @@ app.get('/file/:file_id', async (req, res) => {
     }
 });
 
-// Logika Bot untuk /start
+
+// --- LOGIKA BOT ---
+
+// Menangani perintah /start
 bot.onText(/\/start/, (msg) => {
-    const chatId = msg.chat.id;
-    bot.sendMessage(chatId, 'Selamat datang! Klik tombol di bawah untuk membuka katalog.', {
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: '🚀 Buka Katalog', web_app: { url: `https://${VERCEL_URL}` } }]
-            ]
-        }
+    const baseUrl = VERCEL_URL ? `https://${VERCEL_URL}` : 'http://localhost:3000';
+    bot.sendMessage(msg.chat.id, 'Selamat datang! Klik untuk membuka katalog.', {
+        reply_markup: { inline_keyboard: [[{ text: '🚀 Buka Katalog', web_app: { url: baseUrl } }]] }
     });
 });
 
-// Logika Bot untuk menangani postingan baru di channel
-bot.on('channel_post', (msg) => {
+// Menangani postingan baru di channel
+bot.on('channel_post', async (msg) => {
     if (msg.chat.id.toString() !== CHANNEL_ID || !msg.photo || !msg.caption || !msg.caption.toUpperCase().includes('FOR SALE')) {
         return;
     }
     try {
-        console.log('[BOT] Postingan "FOR SALE" baru terdeteksi!');
-        let products = [];
-        if (fs.existsSync(DB_PATH)) {
-            products = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-        }
+        const database = await connectToDatabase();
         const captionLines = msg.caption.split('\n');
         const keywordIndex = captionLines.findIndex(line => line.toUpperCase().includes('FOR SALE'));
         let productName = 'Nama Produk Tidak Ditemukan', nameIndex = -1;
@@ -89,36 +113,21 @@ bot.on('channel_post', (msg) => {
             if (captionLines[i].trim() !== '') { productName = captionLines[i].trim(); nameIndex = i; break; }
         }
         const productDescription = captionLines.slice(nameIndex + 1).join('\n').trim();
+        
         const newProduct = {
             id: msg.message_id,
             name: productName,
             description: productDescription,
-            // Menggunakan key yang sama: 'image_file_id'
             image_file_id: msg.photo[msg.photo.length - 1].file_id
         };
-        products.unshift(newProduct);
-        fs.writeFileSync(DB_PATH, JSON.stringify(products, null, 2));
-        console.log(`[DB] Sukses! Produk baru "${newProduct.name}" disimpan.`);
-    } catch (error) { console.error('[BOT] Gagal memproses postingan baru:', error.message); }
+
+        // Simpan produk baru ke koleksi 'products' di MongoDB
+        await database.collection("products").insertOne(newProduct);
+        console.log(`[DB] Sukses! Produk baru "${newProduct.name}" disimpan ke MongoDB.`);
+    } catch (error) {
+        console.error('[BOT] Gagal memproses postingan baru:', error.message);
+    }
 });
 
-// Fungsi utama untuk menjalankan server dan ngrok
-async function start() {
-    app.listen(PORT, () => {
-        console.log(`[SERVER] Backend berjalan di http://localhost:${PORT}`);
-        console.log('[BOT] Bot aktif...');
-    });
-
-    try {
-        publicUrl = await ngrok.connect({ addr: PORT, authtoken: NGROK_AUTHTOKEN });
-        console.log('================================================================');
-        console.log(`[NGROK] URL Publik Aktif: ${publicUrl}`);
-        console.log('================================================================');
-        bot.setMyCommands([{ command: '/start', description: 'Buka Katalog Produk' }]);
-    } catch (error) {
-        console.error("[NGROK] Gagal koneksi:", error);
-        process.exit(1);
-    }
-}
-
-start();
+// Export 'app' agar Vercel bisa menjalankannya
+module.exports = app;
